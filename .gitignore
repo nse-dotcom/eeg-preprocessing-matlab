@@ -1,0 +1,42 @@
+clc; clear; close all;
+
+% Load EEG signal
+load('../data/eeg_data.mat'); % eeg_signal, fs
+
+% Plot raw signal
+figure; plot((1:length(eeg_signal))/fs, eeg_signal);
+xlabel('Time (s)'); ylabel('Amplitude (\muV)');
+title('Raw EEG Signal');
+saveas(gcf, '../results/raw_signal.png');
+
+% Bandpass filter (1–40 Hz)
+[b, a] = butter(4, [1 40]/(fs/2), 'bandpass');
+filtered_eeg = filtfilt(b, a, eeg_signal);
+
+% Plot filtered signal
+figure; plot((1:length(filtered_eeg))/fs, filtered_eeg);
+xlabel('Time (s)'); ylabel('Amplitude (\muV)');
+title('Filtered EEG (1–40 Hz)');
+saveas(gcf, '../results/filtered_signal.png');
+
+% Simple artifact removal
+threshold = 100;
+filtered_eeg(abs(filtered_eeg) > threshold) = NaN;
+filtered_eeg = fillmissing(filtered_eeg, 'linear');
+
+% PSD
+[pxx, f] = pwelch(filtered_eeg, hamming(512), 256, 1024, fs);
+figure; plot(f, 10*log10(pxx));
+xlabel('Hz'); ylabel('Power/Frequency (dB/Hz)');
+title('Power Spectral Density');
+saveas(gcf, '../results/psd_plot.png');
+
+% Band power features
+delta = bandpower(filtered_eeg, fs, [1 4]);
+theta = bandpower(filtered_eeg, fs, [4 8]);
+alpha = bandpower(filtered_eeg, fs, [8 13]);
+beta  = bandpower(filtered_eeg, fs, [13 30]);
+
+features = [delta, theta, alpha, beta];
+save('../results/eeg_features.mat', 'features');
+disp('EEG features extracted and saved.');
